@@ -56,12 +56,12 @@ def train_model(features):
     scaled_features = scaler.fit_transform(features)
     
     print("Training Nearest Neighbors model...")
-    model = NearestNeighbors(n_neighbors=6, metric='cosine')
+    model = NearestNeighbors(n_neighbors=6, metric='cosine', algorithm='brute')
     model.fit(scaled_features)
     
     return model, scaler
 
-def find_matching_songs(input_file, model, scaler, database_features, file_names, n_matches=5):
+def find_matching_songs(input_file, model, scaler, file_names, n_matches=5):
     print("Extracting features from input song...")
     input_features = extract_features(input_file)
     scaled_input = scaler.transform(input_features.reshape(1, -1))
@@ -97,13 +97,42 @@ def load_model_and_database():
     database_features, file_names = joblib.load(DATABASE_INFO_PATH)
     return model, scaler, database_features, file_names
 
+def add_new_song(new_song_path):
+    """Add a new song to the existing database and update the model incrementally."""
+    # Load existing data
+    model, scaler, database_features, file_names = load_model_and_database()
+    
+    # Extract features for the new song
+    new_features = extract_features(new_song_path)
+    new_file_name = os.path.basename(new_song_path)
+    
+    # Update database
+    database_features = np.vstack([database_features, new_features])
+    file_names.append(new_file_name)
+    
+    # Update scaler with the new data
+    scaler.partial_fit(new_features.reshape(1, -1))
+    
+    # Scale the new features
+    scaled_new_features = scaler.transform(new_features.reshape(1, -1))
+    
+    # Update the model incrementally
+    model.fit(scaled_new_features)
+    
+    # Save updated data
+    joblib.dump(model, MODEL_PATH)
+    joblib.dump(scaler, SCALER_PATH)
+    joblib.dump((database_features, file_names), DATABASE_INFO_PATH)
+    
+    print(f"Added new song: {new_file_name}")
+
 def get_matching_songs(input_song_path, music_dir, n_matches=5):
     """Main function to get matching songs, building the database if necessary."""
     if not os.path.exists(MODEL_PATH) or not os.path.exists(SCALER_PATH) or not os.path.exists(DATABASE_INFO_PATH):
         build_database(music_dir)
     
-    model, scaler, database_features, file_names = load_model_and_database()
-    matching_songs, distances = find_matching_songs(input_song_path, model, scaler, database_features, file_names, n_matches)
+    model, scaler, _, file_names = load_model_and_database()
+    matching_songs, distances = find_matching_songs(input_song_path, model, scaler, file_names, n_matches)
     
     return matching_songs, distances
 
@@ -111,5 +140,13 @@ if __name__ == "__main__":
     # This block is for testing purposes only
     music_dir = "music/"
     input_song = "music/song.wav"
-    matches = get_matching_songs(input_song, music_dir)
-    print("Matching songs:", matches)
+    
+    # Example of adding a new song
+    new_song_path = "music/new_song.mp3"
+    add_new_song(new_song_path)
+    
+    # Get matching songs
+    matches, distances = get_matching_songs(input_song, music_dir)
+    print("Matching songs:")
+    for song, distance in zip(matches, distances):
+        print(f"{song}: {distance:.4f}")
