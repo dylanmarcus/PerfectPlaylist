@@ -19,7 +19,7 @@ build/
 *.joblib
 
 # Song library
-songs/
+songs*
 
 # Environment variables
 .env
