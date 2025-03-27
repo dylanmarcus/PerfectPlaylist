@@ -1,6 +1,6 @@
-# SHLong
+# PerfectPlaylist
 
-Ride that mood. SHLong finds the most similar feeling songs based off of one first song using AI.
+Ride that mood. Finds the most similar feeling songs based off of one first song using AI.
 
 ## Setup
 
